@@ -13,25 +13,23 @@ else PREFIX="${XDG_CONFIG_HOME:-$HOME/.config}/bookmarks"
 fi
 
 PROGRAM="${0##*/}"
-FILE="${BOOKMARKS_FILE:-$PREFIX/bookmarks.tsv}"
-BROWSE_LIMIT="${BOOKMARKS_BROWSE_LIMIT:-12}"
 SYSTEM="$(uname -s)"
 
 case "$SYSTEM" in
     (Linux)     BROWSE="$(which xdg-open)" ;;
     (Darwin)    BROWSE="$(which open)" ;;
     (*)         echo "Unsupported system"
-                exit 2;;
+                exit 2 ;;
 esac
 
-function blip_help {
+blip_help() {
     cat <<-EOF
 =======================================
   blip  v$VERSION
 
-  bookmarked links in plaintext
+  bookmark list in plaintext
 
-  William Rankin william@bydasein.com
+  Paul W. Rankin pwr@skeletons.cc
 =======================================
 
 Usage: blip [COMMAND] QUERY
@@ -44,7 +42,7 @@ Commands:
         initialize an empty bookmarks repository in
         $PREFIX or DIR
 
-    $PROGRAM add [-c | URL] [TAG TAG ...]
+    $PROGRAM add URL [TAG TAG ...]
         add URL to bookmarks file
 
     $PROGRAM list|find [-t -u] QUERY
@@ -82,31 +80,35 @@ Commands:
 EOF
 }
 
-function list {
-    [[ -n $PRINT_LINE ]] && local NR='NR,'
-    [[ $1 =~ [0-9]+ ]] && local LINE="$1"
+collect() {
+    FILE="${BOOKMARKS_FILE:-$PREFIX/bookmarks.tsv}"
+    URLS=$(awk '$0 !~ /^ *$/' "$FILE")
+}
 
+list() {
+    collect
+    [[ -n $PRINT_LINE ]] && local NR='FNR,'
+    [[ $1 =~ [0-9]+ ]] && local LINE="$1"
     if [[ -n $LINE ]]
     then
-        URLS=$(awk -F '\t' "FNR == $LINE { print $NR $PRINT_FIELDS }" "$FILE")
+        URLS=$(echo "$URLS" | awk -F '\t' "FNR == $LINE { print $NR $PRINT_FIELDS }")
     else
-        URLS=$(awk -F '\t' -v q="$*" "$SEARCH_SCOPE ~ q { print $NR $PRINT_FIELDS }" "$FILE")
+        URLS=$(echo "$URLS" | awk -F '\t' -v q="$*" "$SEARCH_SCOPE ~ q { print $NR $PRINT_FIELDS }")
     fi
-    
     [[ -n $URLS ]] && echo "$URLS" | column -t
 }
 
-function browse {
+browse() {
+    BROWSE_LIMIT="${BOOKMARKS_BROWSE_LIMIT:-12}"
+    collect
     [[ $1 =~ ^[0-9]+$ ]] && local LINE="$1"
-
     if [[ -n $LINE ]]
     then
-        URLS=($(awk -F '\t' "FNR == $LINE { print \$1 }" "$FILE"))
+        URLS=($(echo "$URLS" | awk -F '\t' "FNR == $LINE { print \$1 }"))
     elif [[ -n $* ]]
     then
-        URLS=($(awk -F '\t' -v q="$*" "$SEARCH_SCOPE ~ q { print \$1 }" "$FILE"))
+        URLS=($(echo "$URLS" | awk -F '\t' -v q="$*" "$SEARCH_SCOPE ~ q { print \$1 }"))
     fi
-
     if [[ ${#URLS[@]} -gt $BROWSE_LIMIT ]]
     then
 		cat >&2 <<-EOF
@@ -125,76 +127,81 @@ function browse {
 PRINT_LINE=1
 PRINT_FIELDS='$1'
 SEARCH_SCOPE='$0'
+URLS=
 
-if [[ $1 =~ ^(-h|(--)?help)$ ]]
-then
-    blip_help
-    exit 0
-elif [[ $1 = init ]]
-then
-    if [[ -r $FILE ]]
+main() {
+    if [[ $1 =~ ^(-h|(--)?help)$ ]]
     then
-        cat <<-EOF
+        blip_help
+        exit 0
+    elif [[ $1 = init ]]
+    then
+        if [[ -r $FILE ]]
+        then
+            cat <<-EOF
 		Bookmark file already exists at:
 		    $FILE
 
 		EOF
-    else
-        touch "$FILE"
-        cat <<-EOF
+        else
+            touch "$FILE"
+            cat <<-EOF
 		Created bookmark file at:
 		    $FILE
 
 		EOF
+        fi
+    elif    [[ $1 =~ ^a(dd?)?$ ]]
+    then
+        # check and add URL as new bookmark
+        # TODO
+        # TODO check if exists?
+        echo add -- not yet implemented
+        exit 9
+    elif    [[ $1 =~ ^t(ag?)?$ ]]
+    then
+        # tag bookmark
+        shift 1
+        # TODO
+        echo tag -- not yet implemented
+        exit 9
+    elif    [[ $1 =~ ^o(p(en?)?)?$|^b(r(o(w(se?)?)?)?)?$ ]]
+    then
+        # call $BROWSE on bookmark URL
+        shift 1
+        browse "$@"
+        exit 0
+    elif    [[ $1 =~ ^e(d(it?)?)?$ ]]
+    then
+        # call $EDITOR on bookmark
+        shift 1
+        # TODO
+        echo edit -- not yet implemented
+        exit 9
+    elif    [[ $1 =~ ^fetch(titles?)?$ ]]
+    then
+        # fetch webpage titles
+        # TODO
+        echo fetch -- not yet implemented
+        exit 9
+    elif    [[ $1 =~ ^(l(i?(st?)?)?|f(i(nd?)?)?)$ ]]
+    then
+        # list matching bookmarks
+        shift 1
+        list "$@"
+    elif    [[ $1 =~ ^[0-9]+$ ]]
+    then
+        browse "$1"
+        exit 0
+    elif    [[ -n $1 ]]
+    then
+        list "$@"
+        exit 0
+    else
+        # print help
+        blip_help
+        exit 1
     fi
-elif    [[ $1 =~ ^a(dd?)?$ ]]
-then
-    # check and add URL as new bookmark
-    # TODO
-    # TODO check if exists?
-    echo add -- not yet implemented
-    exit 9
-elif    [[ $1 =~ ^t(ag?)?$ ]]
-then
-    # tag bookmark
-    shift 1
-    # TODO
-    echo tag -- not yet implemented
-    exit 9
-elif    [[ $1 =~ ^o(p(en?)?)?$|^b(r(o(w(se?)?)?)?)?$ ]]
-then
-    # call $BROWSE on bookmark URL
-    shift 1
-    browse "$@"
-    exit 0
-elif    [[ $1 =~ ^e(d(it?)?)?$ ]]
-then
-    # call $EDITOR on bookmark
-    shift 1
-    # TODO
-    echo edit -- not yet implemented
-    exit 9
-elif    [[ $1 =~ ^fetch(titles?)?$ ]]
-then
-    # fetch webpage titles
-    # TODO
-    echo fetch -- not yet implemented
-    exit 9
-elif    [[ $1 =~ ^(l(i?(st?)?)?|f(i(nd?)?)?)$ ]]
-then
-    # list matching bookmarks
-    shift 1
-    list "$@"
-elif    [[ $1 =~ ^[0-9]+$ ]]
-then
-    browse "$1"
-    exit 0
-elif    [[ -n $1 ]]
-then
-    list "$@"
-    exit 0
-else
-    # print help
-    blip_help
-    exit 1
-fi
+}
+
+main "$@"
