@@ -29,7 +29,7 @@ blip_help() {
 
   bookmark list in plaintext
 
-  Paul W. Rankin pwr@skeletons.cc
+  Paul W. Rankin  pwr@skeletons.cc
 =======================================
 
 Usage: blip [COMMAND] QUERY
