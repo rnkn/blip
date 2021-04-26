@@ -102,12 +102,11 @@ list() {
 	print_fields="$1"
 	[ -n "$2" ] && print_linenum='FNR,'
 	search_scope="$3"
+	query="$4"
 	urls=$(collect)
-	if $(int_p "$4"); then
-		seek_line="$4"
-		urls=$(echo "$urls" | awk -F '\t' "FNR == $seek_line { print $print_linenum $print_fields }")
-	elif [ -n "$4" ]; then
-		query="$4"
+	if $(int_p "$query"); then
+		urls=$(echo "$urls" | awk -F '\t' "FNR == $query { print $print_linenum $print_fields }")
+	elif [ -n "$query" ]; then
 		urls=$(echo "$urls" | awk -F '\t' "$search_scope ~ /$query/ { print $print_linenum $print_fields }")
 	else
 		urls=$(echo "$urls" | awk -F '\t' "{ print $print_linenum $print_fields }")
