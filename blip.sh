@@ -105,11 +105,11 @@ list() {
 	query="$4"
 	urls=$(collect)
 	if $(int_p "$query"); then
-		urls=$(echo "$urls" | awk -F '\t' "FNR == $query { print $print_linenum $print_fields }")
+		urls=$(echo "$urls" | awk -F "\t" "FNR == $query { print $print_linenum $print_fields }")
 	elif [ -n "$query" ]; then
-		urls=$(echo "$urls" | awk -F '\t' "$search_scope ~ /$query/ { print $print_linenum $print_fields }")
+		urls=$(echo "$urls" | awk -F "\t" "$search_scope ~ /$query/ { print $print_linenum $print_fields }")
 	else
-		urls=$(echo "$urls" | awk -F '\t' "{ print $print_linenum $print_fields }")
+		urls=$(echo "$urls" | awk -F "\t" "{ print $print_linenum $print_fields }")
 	fi
 	[ -n "$urls" ] && echo "$urls" | column -ts $'\t'
 }
@@ -124,9 +124,9 @@ browse() {
 	[ -n "$BLIP_BROWSER" ] || fail "\$BLIP_BROWSER not set"
 	urls=$(collect)
 	if $(int_p "$query"); then
-		urls=$(echo "$urls" | awk -F '\t' "FNR == $query { print \$1 }")
+		urls=$(echo "$urls" | awk -F "\t" "FNR == $query { print \$1 }")
 	elif [ -n "$query" ]; then
-		urls=$(echo "$urls" | awk -F '\t' "$search_scope ~ /$query/ { print \$1 }")
+		urls=$(echo "$urls" | awk -F "\t" "$search_scope ~ /$query/ { print \$1 }")
 	fi
 	url_count=$(echo "$urls" | wc -l)
 	if [ "$url_count" -gt "$browse_limit" ]; then
