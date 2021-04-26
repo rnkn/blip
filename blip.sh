@@ -21,7 +21,7 @@ version=0.1.0
 blip_file="${BLIP_FILE:-${HOME}/.blip/bookmarks.tsv}"
 
 fail() { echo "$1"; exit 1; }
-int_p() { expr "$1" : '[0-9][0-9]*' >/dev/null; }
+int_p() { expr "$1" : '[0-9][0-9]*$' >/dev/null; }
 
 usage() {
 	cat <<EOF
