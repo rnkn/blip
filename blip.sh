@@ -1,207 +1,164 @@
-#!/usr/bin/env bash
+#!/bin/sh
+#
+# ISC License
+#
+# Copyright (c) 2020-2021 Paul W. Rankin <pwr@bydasein.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# umask
-# set -o pipefail
+program=$(basename "$0")
+version=0.1.0
+blip_file="${BLIP_FILE:-${HOME}/.blip/bookmarks.tsv}"
 
-VERSION=0.1.0
+fail() { echo "$1"; exit 1; }
+int_p() { expr "$1" : '[0-9][0-9]*' >/dev/null; }
 
-if   [[ -n $BOOKMARKS_HOME ]]
-then PREFIX="$BOOKMARKS_HOME"
-elif [[ -r $HOME/.bookmarks ]]
-then PREFIX="$HOME/.bookmarks"
-else PREFIX="${XDG_CONFIG_HOME:-$HOME/.config}/bookmarks"
-fi
-
-PROGRAM="${0##*/}"
-SYSTEM="$(uname -s)"
-
-case "$SYSTEM" in
-    (Linux)     BROWSE="$(which xdg-open)" ;;
-    (Darwin)    BROWSE="$(which open)" ;;
-    (*)         echo "Unsupported system"
-                exit 2 ;;
-esac
-
-blip_help() {
-    cat <<-EOF
-=======================================
-  blip  v$VERSION
-
-  bookmark list in plaintext
-
-  Paul W. Rankin  pwr@skeletons.cc
-=======================================
-
-Usage: blip [COMMAND] QUERY
-
-    QUERY can be a match string or a bookmark number.
-
-Commands:
-
-    $PROGRAM init [DIR]
-        initialize an empty bookmarks repository in
-        $PREFIX or DIR
-
-    $PROGRAM add URL [TAG TAG ...]
-        add URL to bookmarks file
-
-    $PROGRAM list|find [-t -u] QUERY
-        list bookmarks matching QUERY
-
-    $PROGRAM open|browse QUERY
-        open bookmarks matching QUERY in browser
-
-    $PROGRAM tag QUERY TAG [TAG ...]
-        add TAGs to bookmarks matching QUERY
-
-    $PROGRAM edit QUERY
-        edit bookmarks matching QUERY in \$EDITOR
-
-    $PROGRAM fetchtitles
-        fetch all bookmark titles from the web
-
-    $PROGRAM help
-        print this help message
-
-    $PROGRAM version
-        print version info
-
-    $PROGRAM STRING
-        identical to $PROGRAM list QUERY
-
-    $PROGRAM NUMBER
-        identical to $PROGRAM open NUMBER
-
-    Most commands can be used in unambiguous diminutive form, e.g.
-        blip a URL
-        blip ls QUERY
-        blip b QUERY
-
+usage() {
+	cat <<EOF
+$program v$version usage:
+  blip [COMMAND] QUERY
+    QUERY can be a match string or a bookmark number
+commands:
+  $program init [DIR]
+    initialize an empty bookmarks repository in
+    $PREFIX or DIR
+  $program add URL [TAG TAG ...]
+    add URL to bookmarks file
+  $program list|find [-t -u] QUERY
+    list bookmarks matching QUERY
+  $program open|browse QUERY
+    open bookmarks matching QUERY in ${BLIP_BROWSER:-\$BLIP_BROWSER}
+  $program tag QUERY TAG [TAG ...]
+    add TAGs to bookmarks matching QUERY
+  $program edit QUERY
+    edit bookmarks matching QUERY in \$EDITOR
+  $program fetchtitles
+    fetch all bookmark titles from the web
+  $program help
+    print this help message
+  $program version
+    print version info
+  $program STRING
+    identical to $program list QUERY
+  $program NUMBER
+    identical to $program open NUMBER
+  most commands can be used in unambiguous diminutive form, e.g.
+    blip a URL
+    blip ls QUERY
+    blip b QUERY
 EOF
 }
 
+# init()
+# create $blip_file
+# returns: 0
+init() {
+	if [ -f "$blip_file" ]; then
+		fail "$blip_file already exists"
+	else
+		mkdir -p $(dirname "$blip_file")
+		touch "$blip_file"
+	fi
+}
+
+tbc() { echo "$1 not yet implemented"; }
+
+add() {
+	tbc "add"
+}
+
+tag() {
+	tbc "tag"
+}
+
+edit() {
+	tbc "edit"
+}
+
+fetchtitles() {
+	tbc "fetchtitles"
+}
+
+# collect()
+# returns: list of non-blank lines in $blip_file
 collect() {
-    FILE="${BOOKMARKS_FILE:-$PREFIX/bookmarks.tsv}"
-    URLS=$(awk '$0 !~ /^ *$/' "$FILE")
+	[ -r "$blip_file" ] || fail "$blip_file not found"
+	awk '$0 !~ /^ *$/' < "$blip_file"
 }
 
+# list(print_fields, print_linenum, search_scope, query)
+# returns: printed list of matching bookmarks
 list() {
-    collect
-    [[ -n $PRINT_LINE ]] && local NR='FNR,'
-    [[ $1 =~ [0-9]+ ]] && local LINE="$1"
-    if [[ -n $LINE ]]
-    then
-        URLS=$(echo "$URLS" | awk -F '\t' "FNR == $LINE { print $NR $PRINT_FIELDS }")
-    else
-        URLS=$(echo "$URLS" | awk -F '\t' -v q="$*" "$SEARCH_SCOPE ~ q { print $NR $PRINT_FIELDS }")
-    fi
-    [[ -n $URLS ]] && echo "$URLS" | column -t
+	print_fields="$1"
+	[ -n "$2" ] && print_linenum='FNR,'
+	search_scope="$3"
+	urls=$(collect)
+	if $(int_p "$4"); then
+		seek_line="$4"
+		urls=$(echo "$urls" | awk -F '\t' "FNR == $seek_line { print $print_linenum $print_fields }")
+	elif [ -n "$4" ]; then
+		query="$4"
+		urls=$(echo "$urls" | awk -F '\t' "$search_scope ~ /$query/ { print $print_linenum $print_fields }")
+	else
+		urls=$(echo "$urls" | awk -F '\t' "{ print $print_linenum $print_fields }")
+	fi
+	[ -n "$urls" ] && echo "$urls" | column -ts $'\t'
 }
 
+# browse(search_scope, query)
+# open bookmarks matching QUERY with $BLIP_BROWSER
+# returns: 0
 browse() {
-    BROWSE_LIMIT="${BOOKMARKS_BROWSE_LIMIT:-12}"
-    collect
-    [[ $1 =~ ^[0-9]+$ ]] && local LINE="$1"
-    if [[ -n $LINE ]]
-    then
-        URLS=($(echo "$URLS" | awk -F '\t' "FNR == $LINE { print \$1 }"))
-    elif [[ -n $* ]]
-    then
-        URLS=($(echo "$URLS" | awk -F '\t' -v q="$*" "$SEARCH_SCOPE ~ q { print \$1 }"))
-    fi
-    if [[ ${#URLS[@]} -gt $BROWSE_LIMIT ]]
-    then
-		cat >&2 <<-EOF
-		Error:
-		    Attempted to open ${#URLS[@]} bookmarks at once but limit is $BROWSE_LIMIT
-		    Try opening fewer bookmarks or set a higher \$BOOKMARKS_BROWSE_LIMIT
+	search_scope="$1"
+	query="$2"
+	browse_limit="${BLIP_BROWSE_LIMIT:-12}"
+	[ -n "$BLIP_BROWSER" ] || fail "\$BLIP_BROWSER not set"
+	urls=$(collect)
+	if $(int_p "$query"); then
+		urls=$(echo "$urls" | awk -F '\t' "FNR == $query { print \$1 }")
+	elif [ -n "$query" ]; then
+		urls=$(echo "$urls" | awk -F '\t' "$search_scope ~ /$query/ { print \$1 }")
+	fi
+	url_count=$(echo "$urls" | wc -l)
+	if [ "$url_count" -gt "$browse_limit" ]; then
+		cat <<-EOF
+			Attempted to open $url_count bookmarks at once but limit is $browse_limit
+			Try opening fewer bookmarks or set a higher $BLIP_BROWSE_LIMIT
 		EOF
-    else
-        for URL in "${URLS[@]}"
-        do
-            "$BROWSE" "$URL"
-        done
-    fi
+		exit 1
+	else
+		for url in $urls
+		do
+			"$BLIP_BROWSER" "$url"
+		done
+	fi
 }
-
-PRINT_LINE=1
-PRINT_FIELDS='$1'
-SEARCH_SCOPE='$0'
-URLS=
 
 main() {
-    if [[ $1 =~ ^(-h|(--)?help)$ ]]
-    then
-        blip_help
-        exit 0
-    elif [[ $1 = init ]]
-    then
-        if [[ -r $FILE ]]
-        then
-            cat <<-EOF
-		Bookmark file already exists at:
-		    $FILE
-
-		EOF
-        else
-            touch "$FILE"
-            cat <<-EOF
-		Created bookmark file at:
-		    $FILE
-
-		EOF
-        fi
-    elif    [[ $1 =~ ^a(dd?)?$ ]]
-    then
-        # check and add URL as new bookmark
-        # TODO
-        # TODO check if exists?
-        echo add -- not yet implemented
-        exit 9
-    elif    [[ $1 =~ ^t(ag?)?$ ]]
-    then
-        # tag bookmark
-        shift 1
-        # TODO
-        echo tag -- not yet implemented
-        exit 9
-    elif    [[ $1 =~ ^o(p(en?)?)?$|^b(r(o(w(se?)?)?)?)?$ ]]
-    then
-        # call $BROWSE on bookmark URL
-        shift 1
-        browse "$@"
-        exit 0
-    elif    [[ $1 =~ ^e(d(it?)?)?$ ]]
-    then
-        # call $EDITOR on bookmark
-        shift 1
-        # TODO
-        echo edit -- not yet implemented
-        exit 9
-    elif    [[ $1 =~ ^fetch(titles?)?$ ]]
-    then
-        # fetch webpage titles
-        # TODO
-        echo fetch -- not yet implemented
-        exit 9
-    elif    [[ $1 =~ ^(l(i?(st?)?)?|f(i(nd?)?)?)$ ]]
-    then
-        # list matching bookmarks
-        shift 1
-        list "$@"
-    elif    [[ $1 =~ ^[0-9]+$ ]]
-    then
-        browse "$1"
-        exit 0
-    elif    [[ -n $1 ]]
-    then
-        list "$@"
-        exit 0
-    else
-        # print help
-        blip_help
-        exit 1
-    fi
+	print_linenum=1
+	print_fields='$1'
+	search_scope='$0'
+	case "$1" in
+		(init)				init ;;
+		(ls|list|find)		shift; list "$print_fields" "$print_linenum" "$search_scope" "$@" ;;
+		(a|add)				shift; add "$@" ;;
+		(o|open|b|browse)	shift; browse "$search_scope" "$@" ;;
+		(t|tag)				shift; tag "$@" ;;
+		(e|edit)			shift; edit "$@" ;;
+		(fetchtitles)		shift; fetchtitles ;;
+		(-v|v|version)		echo "$program v$version" ;;
+		(-h|--help|help|*)	usage ;;
+	esac
 }
 
 main "$@"

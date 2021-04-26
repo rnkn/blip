@@ -1,6 +1,7 @@
 .POSIX:
-PROGRAM		= blip
-PREFIX		?= /usr/local
+SRC			= blip.sh
+BIN			= blip
+PREFIX		= /usr/local
 
 install:
-	install -m 755 $(PROGRAM) $(PREFIX)/bin
+	install -m 755 ${SRC} ${PREFIX}/bin/${BIN}
