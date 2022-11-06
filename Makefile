@@ -1,6 +1,6 @@
 .POSIX:
-SRC			= blip.sh
-BIN			= blip
+SRC		= blip.sh
+BIN		= blip
 PREFIX		= /usr/local
 
 install:
